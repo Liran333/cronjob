@@ -3,7 +3,7 @@ module github.com/openmerlin/cronjob
 go 1.21.4
 
 require (
-	github.com/openmerlin/merlin-sdk v0.0.0-20240506090933-3f04f51e8d67
+	github.com/openmerlin/merlin-sdk v0.0.0-20240611015932-e7d440164bc8
 	github.com/opensourceways/server-common-lib v0.0.0-20240325033300-a9187b20647e
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028

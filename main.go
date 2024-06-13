@@ -3,18 +3,19 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"github.com/openmerlin/merlin-sdk/statistic"
-	"golang.org/x/xerrors"
 	"io/ioutil"
 	"net/http"
 	"os"
 
+	"github.com/sirupsen/logrus"
+	"golang.org/x/xerrors"
+	"sigs.k8s.io/yaml"
+
 	"github.com/openmerlin/merlin-sdk/httpclient"
+	"github.com/openmerlin/merlin-sdk/statistic"
 	"github.com/openmerlin/merlin-sdk/statistic/api"
 	"github.com/opensourceways/server-common-lib/logrusutil"
 	liboptions "github.com/opensourceways/server-common-lib/options"
-	"github.com/sirupsen/logrus"
-	"sigs.k8s.io/yaml"
 )
 
 const component = "merlin-cronjob"
@@ -34,9 +35,15 @@ type SDKConfig = httpclient.Config
 type Config struct {
 	Merlin        SDKConfig      `json:"merlin"`
 	DownloadCount DownloadConfig `json:"download_count"`
+	VisitCount    VisitConfig    `json:"visit_count"`
 }
 
 type DownloadConfig struct {
+	Spec            string `json:"spec" required:"true"`
+	OriginalDataUrl string `json:"original_data_url" required:"true"`
+}
+
+type VisitConfig struct {
 	Spec            string `json:"spec" required:"true"`
 	OriginalDataUrl string `json:"original_data_url" required:"true"`
 }
@@ -67,6 +74,14 @@ type DownloadData struct {
 	} `json:"data"`
 }
 
+type VisitData struct {
+	Code int `json:"code"`
+	Data []struct {
+		Visit  int    `json:"count"`
+		RepoID string `json:"repo_id"`
+	} `json:"data"`
+}
+
 func fetchDownloadCounts(url string) (*DownloadData, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -86,12 +101,70 @@ func fetchDownloadCounts(url string) (*DownloadData, error) {
 	return &data, nil
 }
 
-func updateRepo(id string, count int) error {
-	_, err := api.UpdateRepo(statistic.UpdateModel{DownloadCount: count}, id)
+func fetchVisitCounts(url string) (*VisitData, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, xerrors.Errorf("fail to fetch data online, error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, xerrors.Errorf("fail to read data, error: %w", err)
+	}
+
+	var data VisitData
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, xerrors.Errorf("fail to Unmarshal data, error: %w", err)
+	}
+	return &data, nil
+}
+
+func updateRepo(id string, data *statistic.UpdateModel) error {
+	_, err := api.UpdateRepo(data, id)
 	if err != nil {
 		return xerrors.Errorf("fail to use internal api, error: %w", err)
 	}
 	return nil
+}
+
+func buildAndUpdateRepo(cfg *Config) {
+	downloadData, err := fetchDownloadCounts(cfg.DownloadCount.OriginalDataUrl)
+	if err != nil {
+		logrus.Errorf("Error fetching download counts: %s", err)
+		return
+	}
+	visitData, err := fetchVisitCounts(cfg.VisitCount.OriginalDataUrl)
+	if err != nil {
+		logrus.Errorf("Error fetching visit counts: %s", err)
+	}
+
+	repoData := make(map[string]statistic.UpdateModel)
+
+	for _, repo := range downloadData.Data {
+		repoData[repo.RepoID] = statistic.UpdateModel{
+			DownloadCount: repo.Download,
+			VisitCount:    0,
+		}
+	}
+
+	for _, repo := range visitData.Data {
+		cur, ok := repoData[repo.RepoID]
+		if ok {
+			cur.VisitCount = repo.Visit
+		} else {
+			repoData[repo.RepoID] = statistic.UpdateModel{
+				DownloadCount: 0,
+				VisitCount:    repo.Visit,
+			}
+		}
+	}
+
+	for id, data := range repoData {
+		if err := updateRepo(id, &data); err != nil {
+			logrus.Errorf("Error update data: %s", err)
+		}
+	}
 }
 
 func main() {
@@ -113,15 +186,6 @@ func main() {
 
 	httpclient.Init(&cfg.Merlin)
 
-	data, err := fetchDownloadCounts(cfg.DownloadCount.OriginalDataUrl)
-	if err != nil {
-		logrus.Errorf("Error fetching download counts: %s", err)
-		return
-	}
+	buildAndUpdateRepo(cfg)
 
-	for _, repo := range data.Data {
-		if err := updateRepo(repo.RepoID, repo.Download); err != nil {
-			logrus.Errorf("Failed to update download counts for repo ID %s: %s", repo.RepoID, err)
-		}
-	}
 }

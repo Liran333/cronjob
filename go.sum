@@ -4,8 +4,8 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/openmerlin/merlin-sdk v0.0.0-20240506090933-3f04f51e8d67 h1:viLvJ3/nZtyRjpDzSGIxiyESM14dsgRs3ySAie+G9X0=
-github.com/openmerlin/merlin-sdk v0.0.0-20240506090933-3f04f51e8d67/go.mod h1:EvByolTqLh7k0QUr72bLSh71QGRml1SpvIdsVFyZ4ZA=
+github.com/openmerlin/merlin-sdk v0.0.0-20240611015932-e7d440164bc8 h1:ZMK6uRehoBua6LS83RUD4uIU0/pZcmvCmdH1KskWXhQ=
+github.com/openmerlin/merlin-sdk v0.0.0-20240611015932-e7d440164bc8/go.mod h1:EvByolTqLh7k0QUr72bLSh71QGRml1SpvIdsVFyZ4ZA=
 github.com/opensourceways/server-common-lib v0.0.0-20240325033300-a9187b20647e h1:3InsGwv3BwAJ5GbRIbjlsAz4gIJ0aeFeqbY14qeJWnU=
 github.com/opensourceways/server-common-lib v0.0.0-20240325033300-a9187b20647e/go.mod h1:p8LVRX70GcSs3hfN4rNRHr6JaYSxKlqi1oos5orO0E0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
