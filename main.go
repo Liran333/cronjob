@@ -151,7 +151,9 @@ func buildAndUpdateRepo(cfg *Config) {
 	for _, repo := range visitData.Data {
 		cur, ok := repoData[repo.RepoID]
 		if ok {
-			cur.VisitCount = repo.Visit
+			newData := cur
+			newData.VisitCount = repo.Visit
+			repoData[repo.RepoID] = newData
 		} else {
 			repoData[repo.RepoID] = statistic.UpdateModel{
 				DownloadCount: 0,
