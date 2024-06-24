@@ -129,17 +129,13 @@ func updateRepo(id string, data *statistic.UpdateModel) error {
 }
 
 func buildAndUpdateRepo(cfg *Config) {
+	repoData := make(map[string]statistic.UpdateModel)
+
 	downloadData, err := fetchDownloadCounts(cfg.DownloadCount.OriginalDataUrl)
 	if err != nil {
 		logrus.Errorf("Error fetching download counts: %s", err)
 		return
 	}
-	visitData, err := fetchVisitCounts(cfg.VisitCount.OriginalDataUrl)
-	if err != nil {
-		logrus.Errorf("Error fetching visit counts: %s", err)
-	}
-
-	repoData := make(map[string]statistic.UpdateModel)
 
 	for _, repo := range downloadData.Data {
 		repoData[repo.RepoID] = statistic.UpdateModel{
@@ -148,16 +144,24 @@ func buildAndUpdateRepo(cfg *Config) {
 		}
 	}
 
-	for _, repo := range visitData.Data {
-		cur, ok := repoData[repo.RepoID]
-		if ok {
-			newData := cur
-			newData.VisitCount = repo.Visit
-			repoData[repo.RepoID] = newData
-		} else {
-			repoData[repo.RepoID] = statistic.UpdateModel{
-				DownloadCount: 0,
-				VisitCount:    repo.Visit,
+	if cfg.VisitCount.OriginalDataUrl != "" {
+		visitData, err := fetchVisitCounts(cfg.VisitCount.OriginalDataUrl)
+		if err != nil {
+			logrus.Errorf("Error fetching visit counts: %s", err)
+			return
+		}
+
+		for _, repo := range visitData.Data {
+			cur, ok := repoData[repo.RepoID]
+			if ok {
+				newData := cur
+				newData.VisitCount = repo.Visit
+				repoData[repo.RepoID] = newData
+			} else {
+				repoData[repo.RepoID] = statistic.UpdateModel{
+					DownloadCount: 0,
+					VisitCount:    repo.Visit,
+				}
 			}
 		}
 	}
@@ -168,7 +172,6 @@ func buildAndUpdateRepo(cfg *Config) {
 		}
 	}
 }
-
 func main() {
 	logrusutil.ComponentInit(component)
 
