@@ -1,177 +1,46 @@
+/*
+Copyright (c) Huawei Technologies Co., Ltd. 2024. All rights reserved
+*/
+
+// Package main for cron job
+
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"io/ioutil"
-	"net/http"
+	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
-	"golang.org/x/xerrors"
-	"sigs.k8s.io/yaml"
-
 	"github.com/openmerlin/merlin-sdk/httpclient"
-	"github.com/openmerlin/merlin-sdk/statistic"
-	"github.com/openmerlin/merlin-sdk/statistic/api"
 	"github.com/opensourceways/server-common-lib/logrusutil"
 	liboptions "github.com/opensourceways/server-common-lib/options"
+	"github.com/sirupsen/logrus"
+
+	"github.com/openmerlin/cronjob/config"
+	"github.com/openmerlin/cronjob/jobs"
 )
 
 const component = "merlin-cronjob"
 
 type Options struct {
 	Service   liboptions.ServiceOptions
+	JobType   string
 	RemoveCfg bool
+}
+
+func (o *Options) Validate() error {
+	if o.JobType == "" {
+		return fmt.Errorf("missing job type")
+	}
+	return o.Service.Validate()
 }
 
 func (o *Options) AddFlags(fs *flag.FlagSet) {
 	o.Service.AddFlags(fs)
 	fs.BoolVar(&o.RemoveCfg, "rm-cfg", false, "Remove the cfg file after initialization.")
+	fs.StringVar(&o.JobType, "job-type", "", "type of job")
 }
 
-type SDKConfig = httpclient.Config
-
-type Config struct {
-	Merlin        SDKConfig      `json:"merlin"`
-	DownloadCount DownloadConfig `json:"download_count"`
-	VisitCount    VisitConfig    `json:"visit_count"`
-}
-
-type DownloadConfig struct {
-	Spec            string `json:"spec" required:"true"`
-	OriginalDataUrl string `json:"original_data_url" required:"true"`
-}
-
-type VisitConfig struct {
-	Spec            string `json:"spec" required:"true"`
-	OriginalDataUrl string `json:"original_data_url" required:"true"`
-}
-
-func LoadConfig(path string, remove bool) (*Config, error) {
-	var cfg Config
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
-		return nil, err
-	}
-	if remove {
-		if err := os.Remove(path); err != nil {
-			return nil, err
-		}
-	}
-	return &cfg, nil
-}
-
-type DownloadData struct {
-	Code int `json:"code"`
-	Data []struct {
-		Name     string `json:"name"`
-		Download int    `json:"download"`
-		RepoID   string `json:"repo_id"`
-	} `json:"data"`
-}
-
-type VisitData struct {
-	Code int `json:"code"`
-	Data []struct {
-		Visit  int    `json:"count"`
-		RepoID string `json:"repo_id"`
-	} `json:"data"`
-}
-
-func fetchDownloadCounts(url string) (*DownloadData, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, xerrors.Errorf("fail to fetch data online, error: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, xerrors.Errorf("fail to read data, error: %w", err)
-	}
-
-	var data DownloadData
-	if err := json.Unmarshal(body, &data); err != nil {
-		return nil, xerrors.Errorf("fail to Unmarshal data, error: %w", err)
-	}
-	return &data, nil
-}
-
-func fetchVisitCounts(url string) (*VisitData, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, xerrors.Errorf("fail to fetch data online, error: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, xerrors.Errorf("fail to read data, error: %w", err)
-	}
-
-	var data VisitData
-	if err := json.Unmarshal(body, &data); err != nil {
-		return nil, xerrors.Errorf("fail to Unmarshal data, error: %w", err)
-	}
-	return &data, nil
-}
-
-func updateRepo(id string, data *statistic.UpdateModel) error {
-	_, err := api.UpdateRepo(data, id)
-	if err != nil {
-		return xerrors.Errorf("fail to use internal api, error: %w", err)
-	}
-	return nil
-}
-
-func buildAndUpdateRepo(cfg *Config) {
-	repoData := make(map[string]statistic.UpdateModel)
-
-	downloadData, err := fetchDownloadCounts(cfg.DownloadCount.OriginalDataUrl)
-	if err != nil {
-		logrus.Errorf("Error fetching download counts: %s", err)
-		return
-	}
-
-	for _, repo := range downloadData.Data {
-		repoData[repo.RepoID] = statistic.UpdateModel{
-			DownloadCount: repo.Download,
-			VisitCount:    0,
-		}
-	}
-
-	if cfg.VisitCount.OriginalDataUrl != "" {
-		visitData, err := fetchVisitCounts(cfg.VisitCount.OriginalDataUrl)
-		if err != nil {
-			logrus.Errorf("Error fetching visit counts: %s", err)
-			return
-		}
-
-		for _, repo := range visitData.Data {
-			cur, ok := repoData[repo.RepoID]
-			if ok {
-				newData := cur
-				newData.VisitCount = repo.Visit
-				repoData[repo.RepoID] = newData
-			} else {
-				repoData[repo.RepoID] = statistic.UpdateModel{
-					DownloadCount: 0,
-					VisitCount:    repo.Visit,
-				}
-			}
-		}
-	}
-
-	for id, data := range repoData {
-		if err := updateRepo(id, &data); err != nil {
-			logrus.Errorf("Error update data: %s", err)
-		}
-	}
-}
 func main() {
 	logrusutil.ComponentInit(component)
 
@@ -183,14 +52,29 @@ func main() {
 		return
 	}
 
-	cfg, err := LoadConfig(opts.Service.ConfigFile, opts.RemoveCfg)
+	if err := opts.Validate(); err != nil {
+		logrus.Fatalf("failed to validate: %v", err)
+
+		return
+	}
+
+	cfg := new(config.Config)
+	err := config.LoadConfig(opts.Service.ConfigFile, cfg, opts.RemoveCfg)
 	if err != nil {
 		logrus.Fatalf("Failed to load configuration: %s", err)
 		return
 	}
 
 	httpclient.Init(&cfg.Merlin)
+	jobs.InitJobMap(cfg)
 
-	buildAndUpdateRepo(cfg)
-
+	job := jobs.GetJobFactory(opts.JobType)
+	if job == nil {
+		logrus.Info("no find job to exec")
+		return
+	}
+	if err = job.Run(); err != nil {
+		logrus.Errorf("run job %s failed: %s", job.Type(), err.Error())
+	}
+	return
 }
