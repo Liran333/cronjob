@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	JobCheckUserRevoke = "check—user-revoke"
+	JobCheckUserRevoke = "check-user-revoke"
 )
 
 func NewCheckUserRevokeJob() *CheckUserRevoke {
