@@ -35,22 +35,24 @@ func (d *visit) Type() string {
 }
 
 func (d *visit) Run() error {
-	downloadData, err := d.fetchVisitCounts(d.cfg.OriginalDataUrl)
+	visitData, err := d.fetchVisitCounts(d.cfg.OriginalDataUrl)
 	if err != nil {
-		return fmt.Errorf("error fetching download counts: %w", err)
+		return fmt.Errorf("error fetching visit counts: %w", err)
 	}
 
-	for _, repo := range downloadData.Data {
+	for _, repo := range visitData.Data {
 		if err = d.updateRepo(repo.RepoID, repo.Visit); err != nil {
-			logrus.Errorf("Failed to update download counts for repo ID %s: %s", repo.RepoID, err)
+			logrus.Errorf("Failed to update visit counts for repo ID %s: %s", repo.RepoID, err)
 		}
 	}
-
 	return nil
 }
 
 func (d *visit) updateRepo(id string, count int) error {
-	_, err := api.UpdateRepo(&statistic.UpdateModel{DownloadCount: count}, id)
+	updateData := statistic.UpdateVisitModel{
+		VisitCount: count,
+	}
+	_, err := api.UpdateVisitCount(&updateData, id)
 	if err != nil {
 		return xerrors.Errorf("fail to use internal api, error: %w", err)
 	}
