@@ -9,11 +9,12 @@ package config
 import (
 	"os"
 
+	"github.com/openmerlin/cronjob/jobs/downloadcount"
+	"github.com/openmerlin/cronjob/jobs/moderation"
+	"github.com/openmerlin/cronjob/jobs/visitcount"
+	gitaccess "github.com/openmerlin/git-access-sdk/httpclient"
 	"github.com/openmerlin/merlin-sdk/httpclient"
 	"sigs.k8s.io/yaml"
-
-	"github.com/openmerlin/cronjob/jobs/downloadcount"
-	"github.com/openmerlin/cronjob/jobs/visitcount"
 )
 
 type configValidate interface {
@@ -32,11 +33,14 @@ type Config struct {
 	Merlin        httpclient.Config    `json:"merlin"`
 	DownloadCount downloadcount.Config `json:"download_count"`
 	VisitCount    visitcount.Config    `json:"visit_count"`
+	Moderation    gitaccess.Config     `json:"git_access"`
+	ModerationCfg moderation.Config    `json:"moderation"`
 }
 
 func (cfg *Config) ConfigItems() []interface{} {
 	return []interface{}{
 		&cfg.Merlin,
+		&cfg.Moderation,
 	}
 }
 

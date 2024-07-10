@@ -8,5 +8,5 @@ package downloadcount
 
 type Config struct {
 	Spec            string `json:"spec" required:"true"`
-	OriginalDataUrl string `json:"original_data_url" required:"true"`
+	OriginalDataUrl string `json:"original_data_url"`
 }

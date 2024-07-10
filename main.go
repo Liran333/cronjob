@@ -10,7 +10,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 
+	gitaccess "github.com/openmerlin/git-access-sdk/httpclient"
 	"github.com/openmerlin/merlin-sdk/httpclient"
 	"github.com/opensourceways/server-common-lib/logrusutil"
 	liboptions "github.com/opensourceways/server-common-lib/options"
@@ -66,14 +68,15 @@ func main() {
 	}
 
 	httpclient.Init(&cfg.Merlin)
+	gitaccess.Init(&cfg.Moderation)
 	jobs.InitJobMap(cfg)
-
 	job := jobs.GetJobFactory(opts.JobType)
 	if job == nil {
 		logrus.Info("no find job to exec")
 		return
 	}
 	if err = job.Run(); err != nil {
+		debug.PrintStack()
 		logrus.Errorf("run job %s failed: %s", job.Type(), err.Error())
 	}
 	return
