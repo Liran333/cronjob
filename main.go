@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime/debug"
 
 	gitaccess "github.com/openmerlin/git-access-sdk/httpclient"
 	"github.com/openmerlin/merlin-sdk/httpclient"
@@ -76,7 +75,6 @@ func main() {
 		return
 	}
 	if err = job.Run(); err != nil {
-		debug.PrintStack()
 		logrus.Errorf("run job %s failed: %s", job.Type(), err.Error())
 	}
 	return
