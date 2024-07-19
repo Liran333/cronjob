@@ -15,6 +15,9 @@ import (
 	gitaccess "github.com/openmerlin/git-access-sdk/httpclient"
 	"github.com/openmerlin/merlin-sdk/httpclient"
 	"sigs.k8s.io/yaml"
+
+	"github.com/openmerlin/cronjob/common"
+	"github.com/openmerlin/cronjob/jobs/modeldeploy"
 )
 
 type configValidate interface {
@@ -30,7 +33,10 @@ type configItems interface {
 }
 
 type Config struct {
+	Obs           common.Obs           `json:"obs"`
+	Gitee         common.Gitee         `json:"gitee"`
 	Merlin        httpclient.Config    `json:"merlin"`
+	ModelDeploy   modeldeploy.Config   `json:"model_deploy"`
 	DownloadCount downloadcount.Config `json:"download_count"`
 	VisitCount    visitcount.Config    `json:"visit_count"`
 	Moderation    gitaccess.Config     `json:"git_access"`
@@ -39,8 +45,12 @@ type Config struct {
 
 func (cfg *Config) ConfigItems() []interface{} {
 	return []interface{}{
+		&cfg.Obs,
+		&cfg.Gitee,
 		&cfg.Merlin,
-		&cfg.Moderation,
+		&cfg.ModelDeploy,
+		&cfg.DownloadCount,
+		&cfg.VisitCount,
 	}
 }
 

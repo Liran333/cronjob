@@ -17,6 +17,7 @@ import (
 	liboptions "github.com/opensourceways/server-common-lib/options"
 	"github.com/sirupsen/logrus"
 
+	"github.com/openmerlin/cronjob/common"
 	"github.com/openmerlin/cronjob/config"
 	"github.com/openmerlin/cronjob/jobs"
 )
@@ -63,6 +64,12 @@ func main() {
 	err := config.LoadConfig(opts.Service.ConfigFile, cfg, opts.RemoveCfg)
 	if err != nil {
 		logrus.Fatalf("Failed to load configuration: %s", err)
+		return
+	}
+
+	if err = common.InitObs(&cfg.Obs); err != nil {
+		logrus.Fatalf("init obs error: %v", err)
+
 		return
 	}
 
